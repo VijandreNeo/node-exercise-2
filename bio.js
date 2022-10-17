@@ -144,10 +144,10 @@ try {
             throw Error('Name does not exist')
           }
           console.log(`\nName: ${result.name} \n 
-          Sex: ${result.sex} \n
+          Sex: ${result.sex === 'F' ? 'FEMALE' : 'MALE'} \n
           Age: ${result.age} \n
           Height (inches): ${result.height} (centimeters): ${result.height *= 2.54} \n
-          Weight (pounds): ${result.weight} (kilos) ${result.weight *= 0.45359237}\n`)
+          Weight (pounds): ${result.weight} (kilos): ${result.weight *= 0.45359237}\n`)
         }
         break
       }
