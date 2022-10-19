@@ -14,22 +14,30 @@ class Bio {
 }
 
 function readCSV(inputFile) {
+  if (!existsSync(inputFile)) {
+    return null
+  }
   const data = readFileSync(inputFile, { encoding: 'utf8' })
   const config = {
     delimiter: ',',
     quote: '"',
   }
+  const extractedArr = toObject(data, config)
+  const dataToMap = new Map()
 
-  return toObject(data, config)
+  extractedArr.forEach((extractedObj) => {
+    dataToMap.set(extractedObj.name, extractedObj)
+  })
+  return dataToMap
 }
 
-function writeCSV(inputPath, bioArray) {
+function writeCSV(inputPath, bioMap) {
   const config = {
     quote: '"',
     delimiter: ',',
     headers: 'key',
   }
-  const turnToCSV = toCSV(bioArray, config)
+  const turnToCSV = toCSV(Array.from(bioMap.values()), config)
   if (!existsSync(inputPath)) {
     return null
   }
@@ -42,48 +50,36 @@ function writeCSV(inputPath, bioArray) {
 }
 
 function createBio(fromCSV, newBio) {
-  const find = fromCSV.find((csvBio) => csvBio.name.toUpperCase() === newBio.name.toUpperCase())
-
-  if (find === undefined) {
-    fromCSV.push(newBio)
-    return fromCSV
+  if (fromCSV.has(newBio.name)) {
+    throw new Error('Name already exists')
   }
-  return null
+  fromCSV.set(newBio.name, newBio)
+  return new Map(fromCSV)
 }
 
 function readBio(fromCSV, newBio) {
-  const find = fromCSV.find((csvBio) => csvBio.name.toUpperCase() === newBio.name.toUpperCase())
-
-  if (find === undefined) {
-    return null
+  if (!fromCSV.has(newBio.name)) {
+    throw new Error('Name does not exist')
   }
-  return find
+  return fromCSV.get(newBio.name)
 }
 
 function updateBio(fromCSV, newBio) {
-  let checkerIfExist = false
-
-  fromCSV.forEach((csvBio) => {
-    if (csvBio.name.toUpperCase() === newBio.name.toUpperCase()) {
-      Object.assign(csvBio, newBio)
-      checkerIfExist = true
-    }
-  })
-  if (checkerIfExist === true) {
-    return fromCSV
+  if (!fromCSV.has(newBio.name)) {
+    throw new Error('Name does not exist')
   }
-  return null
+  const alteredMap = new Map(fromCSV)
+  alteredMap.set(newBio.name, newBio)
+  return alteredMap
 }
 
 function deleteBio(fromCSV, newBio) {
-  const find = fromCSV.find((csvBio) => csvBio.name.toUpperCase() === newBio.name.toUpperCase())
-
-  if (find === undefined) {
-    return null
+  if (!fromCSV.has(newBio.name)) {
+    throw new Error('Name does not exist')
   }
-  const newArr = fromCSV.filter((csvBio) => csvBio.name.toUpperCase() !== newBio.name.toUpperCase())
-
-  return newArr
+  const alteredMap = new Map(fromCSV)
+  alteredMap.delete(newBio.name)
+  return alteredMap
 }
 
 try {
@@ -91,6 +87,9 @@ try {
     throw Error('Option or Name not specified')
   }
   const fromCSV = readCSV('biostats.csv')
+  if (fromCSV === null) {
+    throw Error('File does not exist')
+  }
   switch (options.toLowerCase()) {
     case '-c': case '-u': {
       const sexUpperCase = inputSex.toUpperCase()
@@ -111,26 +110,9 @@ try {
       const stats = new Bio(nameUpperCase, sexUpperCase, ageInt, heightInt, weightInt)
 
       if (options.toLowerCase() === '-c') {
-        const result = createBio(fromCSV, stats)
-
-        if (result === null) {
-          throw Error('Name already exists')
-        }
-        const writeResult = writeCSV('biostats.csv', result)
-
-        if (writeResult === null) {
-          throw Error('File does not exist')
-        }
+        writeCSV('biostats.csv', createBio(fromCSV, stats))
       } else if (options.toLowerCase() === '-u') {
-        const result = updateBio(fromCSV, stats)
-
-        if (result === null) {
-          throw Error('Name does not exist')
-        }
-        const writeResult = writeCSV('biostats.csv', result)
-        if (writeResult === null) {
-          throw Error('File does not exist')
-        }
+        writeCSV('biostats.csv', updateBio(fromCSV, stats))
       }
       break
     }
@@ -138,25 +120,13 @@ try {
       if (inputName === undefined) {
         throw Error('No name specified')
       }
-      const stats = new Bio(inputName.toUpperCase())
+      const stats = new Bio(inputName[0].toUpperCase() + inputName.substring(1).toLowerCase())
 
       if (options === '-d') {
-        const result = deleteBio(fromCSV, stats)
-
-        if (result === null) {
-          throw Error('Name does not exist')
-        }
-        const writeResult = writeCSV('biostats.csv', result)
-
-        if (writeResult === null) {
-          throw Error('File does not exist')
-        }
+        writeCSV('biostats.csv', deleteBio(fromCSV, stats))
       } else if (options === '-r') {
         const result = readBio(fromCSV, stats)
 
-        if (result === null) {
-          throw Error('Name does not exist')
-        }
         console.log(`
           Name: ${result.name}
           Sex: ${result.sex === 'F' ? 'FEMALE' : 'MALE'}
@@ -170,4 +140,4 @@ try {
     default:
       throw Error('Wrong option argument')
   }
-} catch (error) { console.error('Error: ', error) }
+} catch (error) { console.log(error.toString()) }
